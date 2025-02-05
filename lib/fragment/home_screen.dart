@@ -1,10 +1,14 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:inventory/controller/home_controller.dart';
+import 'package:inventory/model/product_model.dart';
+import 'package:inventory/utils/style_const.dart';
+import 'package:shimmer/shimmer.dart';
 import '../controller/dashboard_controller.dart';
 import '../controller/theme_controller.dart';
-import '../model/product_model.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_theme_style.dart';
 import '../widget/search_product.dart';
@@ -17,8 +21,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final DashboardController dashboardController =
-      Get.find<DashboardController>();
+  final DashboardController dashboardController = Get.find<DashboardController>();
   final HomeController homeController = Get.put(HomeController());
 
   @override
@@ -27,142 +30,154 @@ class _HomeScreenState extends State<HomeScreen> {
     homeController.fetchProducts();
   }
 
+  Color getRandomColor() {
+    final Random random = Random();
+    return Color.fromARGB(
+      255,
+      random.nextInt(256),
+      random.nextInt(256),
+      random.nextInt(256),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ThemeController.to.currentTheme == ThemeMode.light
-          ? Colors.grey[100]
-          : kDark,
-      appBar: AppBar(
-        title: Text.rich(
-          TextSpan(
-            text: 'Inventory',
-            style: TextStyle(
-                shadows: [
-                  Shadow(
-                      color: Colors.grey.withOpacity(0.3),
-                      offset: const Offset(1, 1),
-                      blurRadius: 2)
-                ],
-                fontFamily: poppinsMedium,
-                fontSize: 28.sp,
-                color: const Color.fromARGB(255, 255, 119, 0),
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0),
-          ),
-        ),
-        backgroundColor: ThemeController.to.currentTheme == ThemeMode.light
-            ? Colors.grey[100]
-            : kDark,
-        surfaceTintColor: Colors.transparent,
-        toolbarHeight: 60.sp,
-        actions: [
-          InkWell(
-            onTap: () async {
-              await showSearch(
-                  context: context, delegate: SearchProductDelegate());
-            },
-            child: Container(
-              padding: EdgeInsets.all(10.0.sp),
-              child: Icon(
-                Icons.search,
-                color: ThemeController.to.currentTheme == ThemeMode.light
-                    ? textHintColor
-                    : kWhite,
-                size: 25.sp,
-              ),
-            ),
-          ),
-        ],
-        automaticallyImplyLeading: false,
-        centerTitle: false,
-      ),
       body: GetBuilder<DashboardController>(
         init: DashboardController(),
-        builder: (_) => Obx(
-          () {
-            return homeController.isLoading.value
-                ? Center(
-              child: CircularProgressIndicator(
-                color: backgroundColor,
+        builder: (_) => Stack(
+          children: [
+            Container(
+              decoration: const BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage('assets/images/user_image.jpg') as ImageProvider,
+                  fit: BoxFit.cover,
+                ),
               ),
-            )
-                : SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
+            ),
+            Scaffold(
+              backgroundColor: Colors.transparent,
+              body: Column(
+                children: [
+                  headerView(),
+                  Expanded(
                     child: Container(
-                        padding: EdgeInsets.all(10.0.sp),
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: homeController.productList.length,
-                          itemBuilder: (context, index) {
-                            final product =
-                            homeController.productList[index];
-                            return Card(
-                              elevation: 5,
-                              margin: EdgeInsets.symmetric(
-                                  vertical: 8.0.sp, horizontal: 8.0.sp),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12.0),
+                      padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 10.0),
+                      decoration: BoxDecoration(
+                        color: ThemeController.to.currentTheme == ThemeMode.light
+                            ? Colors.grey[100]
+                            : kDark,
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(20.0),
+                          topRight: Radius.circular(20.0),
+                        ),
+                      ),
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Container(
+                          padding: EdgeInsets.all(10.0.sp),
+                          child: Obx(() {
+                            return homeController.isLoading.value
+                                ? Center(
+                              child: CircularProgressIndicator(
+                                color: backgroundColor,
                               ),
-                              child: ListTile(
-                                contentPadding: EdgeInsets.all(10.0.sp),
-                                title: Text(
-                                  product.name,
-                                  style: largeTextStyle(size: 16.sp, color: ThemeController.to.currentTheme ==
-                                      ThemeMode.light
-                                      ? kBlack
-                                      : kWhite,),
-                                ),
-                                subtitle: Text(
-                                  'Quantity: ${product.quantity}, Price: \$${product.price}',
-                                  style: smallTextStyle(size: 14.sp, color: ThemeController.to.currentTheme ==
-                                      ThemeMode.light
-                                      ? kBlack
-                                      : kWhite,),
-                                ),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.favorite,
-                                        color: product.favorite
-                                            ? Colors.red
-                                            : null,
-                                        size: 24.sp,
-                                      ),
-                                      onPressed: () {
-                                        homeController.toggleFavorite(
-                                            product.id, product.favorite);
-                                      },
+                            )
+                                : ListView.builder(
+                              shrinkWrap: true,
+                              padding: EdgeInsets.zero,
+                              itemCount: homeController.productList.length,
+                              itemBuilder: (context, index) {
+                                final product = homeController.productList[index];
+                                return Dismissible(
+                                  key: Key(product.id.toString()),
+                                  direction: DismissDirection.endToStart,
+                                  onDismissed: (direction) async {
+                                    await homeController.deleteProduct(product.id);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('${product.name} deleted')),
+                                    );
+                                  },
+                                  background: Container(
+                                    color: Colors.red,
+                                    alignment: Alignment.centerRight,
+                                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                                    child: const Icon(
+                                      Icons.delete,
+                                      color: Colors.white,
+                                      size: 30.0,
                                     ),
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.edit,
-                                        size: 24.sp,
-                                      ),
-                                      onPressed: () {
-                                        showEditProductDialog(product);
-                                      },
+                                  ),
+                                  child: Card(
+                                    elevation: 5,
+                                    surfaceTintColor: kWhite,
+                                    color: getRandomColor(),
+                                    margin: EdgeInsets.symmetric(vertical: 8.0.sp, horizontal: 8.0.sp),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12.0),
                                     ),
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.delete,
-                                        size: 24.sp,
+                                    child: ListTile(
+                                      contentPadding: EdgeInsets.all(10.0.sp),
+                                      title: Text(
+                                        product.name,
+                                        style: largeTextStyle(size: 16.sp, color: ThemeController.to.currentTheme == ThemeMode.light
+                                            ? kBlack
+                                            : kWhite,),
                                       ),
-                                      onPressed: () async{
-                                        await homeController.deleteProduct(product.id);
-                                      },
+                                      subtitle: Text(
+                                        'Quantity: ${product.quantity}, Price: \$${product.price}',
+                                        style: smallTextStyle(size: 14.sp, color: ThemeController.to.currentTheme == ThemeMode.light
+                                            ? kBlack
+                                            : kWhite,),
+                                      ),
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            icon: Icon(
+                                              Icons.favorite,
+                                              color: product.favorite
+                                                  ? Colors.red
+                                                  : null,
+                                              size: 24.sp,
+                                            ),
+                                            onPressed: () async {
+                                              await homeController.toggleFavorite(product.id, product.favorite);
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    '${product.name} has been ${product.favorite ? "removed from" : "added to"} favorites.',
+                                                  ),
+                                                  duration: Duration(seconds: 2),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                          IconButton(
+                                            icon: Icon(
+                                              Icons.edit,
+                                              size: 24.sp,
+                                            ),
+                                            onPressed: () {
+                                              showEditProductDialog(product);
+                                            },
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ],
-                                ),
-                              ),
+                                  ),
+                                );
+                              },
                             );
-                          },
-                        )
+                          }),
+                        ),
+                      ),
                     ),
-                  );
-          },
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
@@ -170,6 +185,53 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: backgroundColor,
         child: const Icon(Icons.add),
       ),
+    );
+  }
+
+  headerView() {
+    return Container(
+      color: Colors.transparent,
+      child: Padding(
+          padding: const EdgeInsets.only(left: 16, right: 16),
+          child: Column(
+            children: [
+              heightWidget(45),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Inventory',
+                    textAlign: TextAlign.start,
+                    overflow: TextOverflow.ellipsis,
+                    style: largeTextStyle(
+                      size: 28.sp,
+                      color: ThemeController.to.currentTheme == ThemeMode.light
+                          ? kWhite
+                          : kWhite,
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () async {
+                      await showSearch(
+                          context: context, delegate: SearchProductDelegate());
+                    },
+                    child: Container(
+                      padding: EdgeInsets.all(10.0.sp),
+                      child: Icon(
+                        Icons.search,
+                        color:
+                        ThemeController.to.currentTheme == ThemeMode.light
+                            ? kWhite
+                            : kWhite,
+                        size: 25.sp,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              heightWidget(25),
+            ],
+          )),
     );
   }
 
